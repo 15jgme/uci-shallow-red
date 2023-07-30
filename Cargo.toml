@@ -1,0 +1,15 @@
+[package]
+name = "uci-shallow-red"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.12.0", features = ["full"] } #
+chess = ">0.0.1"
+shallow_red_engine = { git = "https://www.github.com/15jgme/shallow_red_engine.git", branch = "main"}
+#shallow_red_engine = { path = "../shallow_red_engine"}
+text_io = "0.1.12"
+simple-logging = ">2.0.0"
+log = ">=0.4.19"
