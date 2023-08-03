@@ -13,3 +13,4 @@ shallow_red_engine = { git = "https://www.github.com/15jgme/shallow_red_engine.g
 text_io = "0.1.12"
 simple-logging = ">2.0.0"
 log = ">=0.4.19"
+parking_lot = "0.12.1"
