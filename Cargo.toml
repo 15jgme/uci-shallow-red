@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.12.0", features = ["full"] } #
 chess = ">0.0.1"
-shallow_red_engine = { git = "https://www.github.com/15jgme/shallow_red_engine.git", branch = "main"}
+shallow_red_engine = { git = "https://www.github.com/15jgme/shallow_red_engine.git",tag = "v0.3.0"}
 #shallow_red_engine = { path = "../shallow_red_engine"}
 text_io = "0.1.12"
 simple-logging = ">2.0.0"
