@@ -18,7 +18,7 @@ use std::{
 
 use parking_lot::RwLock;
 use timecontrol::thinking_time;
-use tokio::task;
+use tokio::{task, time::timeout};
 
 mod timecontrol;
 
@@ -46,7 +46,7 @@ async fn main() {
     };
 
     // Setup logging
-    let _ = simple_logging::log_to_file("shallowred.log", LevelFilter::Info);
+    let _ = simple_logging::log_to_file("shallow-red.log", LevelFilter::Info);
     info!("Shallow Red starting");
 
     loop {
@@ -101,10 +101,14 @@ async fn parse_input(
         }
         "go" => {
             // Get our current time
-            let time_remaining = Duration::from_millis(match board.side_to_move() {
-                chess::Color::White => parsed_input[2].parse::<u64>().unwrap(),
-                chess::Color::Black => parsed_input[4].parse::<u64>().unwrap(),
-            });
+            let time_remaining = if parsed_input[1] == "movetime" {
+                Duration::from_millis(parsed_input[2].parse::<u64>().unwrap())
+            } else {
+                Duration::from_millis(match board.side_to_move() {
+                    chess::Color::White => parsed_input[2].parse::<u64>().unwrap(),
+                    chess::Color::Black => parsed_input[4].parse::<u64>().unwrap(),
+                })
+            };
 
             // Create a channel for stopping the engine
             let (tx, rx): (Sender<bool>, Receiver<bool>) = mpsc::channel(); // Stop channel
@@ -116,10 +120,28 @@ async fn parse_input(
             settings.cache_settings = cache;
             settings.time_limit = thinking_time(*moves_played, time_remaining);
 
+            let moves_played_backup = *moves_played;
+
             let board_run = board.clone(); // Copy the current board
             task::spawn(async move {
                 // Spawn a long thread to monitor to run the engine, which returns the result when finished
-                let engine_out = run_engine(board_run, settings).await;
+                // Give the search 2x its requested time before killing it
+                let engine_out = match timeout(settings.time_limit * 2, async {
+                    run_engine(board_run, settings)
+                })
+                .await
+                {
+                    Ok(result) => result,
+                    Err(_) => {
+                        // We ran outta time, try restarting the search with no cache
+                        let mut settings_backup = EngineSettings::default();
+                        settings_backup.time_limit =
+                            thinking_time(moves_played_backup, time_remaining);
+                        settings_backup.cache_settings = None; // Try without cache to correct issue
+                        info!("Hard reset search, it timedout");
+                        run_engine(board_run, settings_backup)
+                    }
+                };
                 println!("{}", engine_out);
             });
             *moves_played += 1;
@@ -157,10 +179,16 @@ fn load_position(input: Vec<&str>, board: &mut Board) {
     }
 }
 
-async fn run_engine(board: Board, settings: EngineSettings) -> String {
-    info!("Running search on board {}, with settings {:#?}", board.to_string(), settings);
-    let (best_move, search_results) = enter_engine(board, settings).await;
-    if let Some(results) = search_results { info!("Search finished with results: {:#?}", results) }
+fn run_engine(board: Board, settings: EngineSettings) -> String {
+    info!(
+        "Running search on board {}, with settings {:#?}",
+        board.to_string(),
+        settings
+    );
+    let (best_move, search_results) = enter_engine(board, settings);
+    if let Some(results) = search_results {
+        info!("Search finished with results: {:#?}", results)
+    }
     "bestmove ".to_owned() + &best_move.to_string()
 }
 
